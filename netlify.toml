@@ -1,0 +1,23 @@
+# Configuración de Netlify
+# Fase 4: sitio estático. Fase 5: + Netlify Functions conectadas a Neon.
+# "npm install" es necesario para que la función levantamientos.js tenga
+# disponible la librería @neondatabase/serverless al momento de publicarse.
+
+[build]
+  publish = "."
+  command = "npm install"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# Cabeceras de caché básicas para los assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

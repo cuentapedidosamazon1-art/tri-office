@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Calculadora de Volumen de Impresión · TRI OFFICE</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+
+<!-- Tipografías -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<!-- Chart.js para las gráficas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ============================================================
+     BARRA SUPERIOR + NAVEGACIÓN
+     ============================================================ -->
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <img src="assets/logo.png" alt="TRI OFFICE">
+      <div class="brand-text">
+        <h1>Calculadora de Volumen de Impresión</h1>
+        <p>Herramienta para Levantamientos Técnicos de Equipos de Impresión</p>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button class="icon-btn" id="btn-settings" title="Configuración de umbrales" aria-label="Configuración">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-theme" title="Modo claro/oscuro" aria-label="Cambiar tema">
+        <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>
+      </button>
+    </div>
+  </div>
+  <nav class="subnav" id="subnav">
+    <div class="subnav-item active" data-target="#sec-ficha">Levantamiento</div>
+    <div class="subnav-item" data-target="#sec-deptos">Departamentos</div>
+    <div class="subnav-item" data-target="#sec-dashboard">Dashboard</div>
+    <div class="subnav-item" data-target="#sec-analisis">Análisis</div>
+    <div class="subnav-item" data-target="#sec-reco">Recomendación</div>
+    <div class="subnav-item" data-target="#sec-equipos">Equipos</div>
+  </nav>
+</div>
+
+<main class="container">
+
+  <!-- ============================================================
+       FICHA DEL LEVANTAMIENTO
+       ============================================================ -->
+  <section class="section" id="sec-ficha">
+    <div class="section-head">
+      <h2>Datos del levantamiento</h2>
+      <span class="hint">Se guarda automáticamente en este dispositivo</span>
+    </div>
+    <div class="card card-pad">
+      <div class="survey-grid">
+        <div class="field">
+          <label for="in-cliente">Cliente</label>
+          <input type="text" id="in-cliente" placeholder="Nombre de la empresa">
+        </div>
+        <div class="field">
+          <label for="in-tecnico">Técnico responsable</label>
+          <input type="text" id="in-tecnico" placeholder="Nombre del técnico">
+        </div>
+        <div class="field">
+          <label for="in-fecha">Fecha del levantamiento</label>
+          <input type="date" id="in-fecha">
+        </div>
+        <div class="field">
+          <label for="in-codigo">N.° de levantamiento</label>
+          <input type="text" id="in-codigo" placeholder="Autogenerado" readonly>
+        </div>
+        <div class="field full">
+          <label for="in-obs">Observaciones generales</label>
+          <textarea id="in-obs" placeholder="Notas sobre el sitio, acceso a los equipos, contactos, etc."></textarea>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       DEPARTAMENTOS
+       ============================================================ -->
+  <section class="section" id="sec-deptos">
+    <div class="section-head">
+      <h2>Registro de departamentos</h2>
+      <div class="toolbar">
+        <button class="btn btn-primary btn-sm" id="btn-add-dept">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+          Agregar departamento
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table class="depts">
+          <thead>
+            <tr>
+              <th style="width:22%">Departamento</th>
+              <th>Resmas / semana</th>
+              <th>Páginas / semana</th>
+              <th>Páginas / mes</th>
+              <th>Volumen anual</th>
+              <th>Nivel</th>
+              <th style="width:44px"></th>
+            </tr>
+          </thead>
+          <tbody id="dept-tbody"></tbody>
+        </table>
+      </div>
+      <div class="dept-cards" id="dept-cards"></div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       DASHBOARD
+       ============================================================ -->
+  <section class="section" id="sec-dashboard">
+    <div class="section-head"><h2>Dashboard</h2></div>
+    <div class="stats-grid" id="stats-grid"></div>
+  </section>
+
+  <!-- ============================================================
+       ANÁLISIS
+       ============================================================ -->
+  <section class="section" id="sec-analisis">
+    <div class="section-head"><h2>Análisis del volumen de impresión</h2></div>
+    <div class="analysis-grid">
+      <div class="card card-pad">
+        <div class="insight-list" id="insight-list"></div>
+      </div>
+      <div class="card card-pad">
+        <h3 style="font-size:13px; color:var(--text-muted); margin-bottom:10px;">Departamentos por nivel</h3>
+        <div id="tier-summary" class="insight-list"></div>
+      </div>
+    </div>
+    <div class="charts-grid">
+      <div class="card chart-box">
+        <h3>Volumen semanal por departamento</h3>
+        <div class="chart-canvas-wrap"><canvas id="chart-bar"></canvas></div>
+      </div>
+      <div class="card chart-box">
+        <h3>Distribución porcentual del volumen</h3>
+        <div class="chart-canvas-wrap"><canvas id="chart-pie"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       RECOMENDACIÓN DE CAPACIDAD
+       ============================================================ -->
+  <section class="section" id="sec-reco">
+    <div class="section-head"><h2>Recomendación de capacidad de impresora</h2></div>
+    <div class="card card-pad">
+      <div class="reco-grid">
+        <div>
+          <div class="reco-badge" id="reco-badge">
+            <span class="tag">Volumen detectado</span>
+            <span class="title mono" id="reco-volumen">0 páginas/mes</span>
+          </div>
+        </div>
+        <div>
+          <div class="gauge" id="reco-gauge">
+            <span style="width:33.3%; background:var(--brand-green);"></span>
+            <span style="width:33.3%; background:var(--brand-blue);"></span>
+            <span style="width:33.4%; background:var(--brand-red);"></span>
+            <div class="gauge-marker" id="gauge-marker" style="left:0%"></div>
+          </div>
+          <div class="gauge-labels">
+            <span>Bajo · equipo básico</span>
+            <span>Medio · rendimiento medio</span>
+            <span>Alto · alto rendimiento</span>
+          </div>
+          <p class="reco-note">Esta recomendación es referencial y debe validarse considerando el ciclo de trabajo, velocidad, tipo de documento, frecuencia de impresión y características del equipo.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       EQUIPOS DE IMPRESIÓN (módulo opcional)
+       ============================================================ -->
+  <section class="section" id="sec-equipos">
+    <div class="section-head">
+      <h2>Equipos de impresión <span class="module-badge">Módulo opcional</span></h2>
+      <div class="toolbar">
+        <button class="btn btn-outline btn-sm" id="btn-add-equipo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+          Agregar equipo
+        </button>
+      </div>
+    </div>
+    <div class="card card-pad">
+      <p style="font-size:13px; color:var(--text-muted); margin:0 0 14px;">
+        Registra aquí los equipos instalados por departamento. Esto permitirá, en una próxima fase, comparar el volumen estimado contra el uso real medido por los contadores.
+      </p>
+      <div class="table-wrap">
+        <table class="depts" id="equipo-table">
+          <thead>
+            <tr>
+              <th>Departamento</th><th>Fabricante</th><th>Modelo</th><th>Serial</th>
+              <th>Tecnología</th><th>Color</th><th>Contador actual</th><th style="width:44px"></th>
+            </tr>
+          </thead>
+          <tbody id="equipo-tbody"></tbody>
+        </table>
+      </div>
+      <div id="equipo-empty" style="display:none; text-align:center; padding:24px; color:var(--text-faint); font-size:13px;">
+        Aún no hay equipos registrados. Usa "Agregar equipo" para iniciar el inventario.
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============================================================
+     BARRA INFERIOR DE ACCIONES DEL LEVANTAMIENTO
+     ============================================================ -->
+<footer class="app-footer">
+  <div class="container">
+    <div class="toolbar" style="justify-content:center; margin-bottom:16px;">
+      <button class="btn btn-outline" id="btn-new">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Nuevo levantamiento
+      </button>
+      <button class="btn btn-primary" id="btn-save">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+        Guardar
+      </button>
+      <button class="btn btn-outline" id="btn-load">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 8v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2Z"/></svg>
+        Cargar
+      </button>
+      <button class="btn btn-outline" id="btn-print">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+        Imprimir
+      </button>
+      <button class="btn btn-outline" id="btn-pdf" title="Disponible en la próxima fase" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        Exportar PDF
+      </button>
+      <button class="btn btn-outline" id="btn-xls" title="Disponible en la próxima fase" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        Exportar Excel
+      </button>
+      <button class="btn btn-danger" id="btn-delete">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6"/></svg>
+        Eliminar todo
+      </button>
+    </div>
+    <p>Calculadora de Volumen de Impresión — TRI OFFICE · Los datos se guardan localmente en este navegador.</p>
+  </div>
+</footer>
+
+<!-- ============================================================
+     PANEL DE CONFIGURACIÓN (umbrales de clasificación)
+     ============================================================ -->
+<div class="overlay" id="overlay"></div>
+<div class="drawer" id="drawer-settings">
+  <div class="drawer-head">
+    <h3 style="font-size:15px;">Configuración de umbrales</h3>
+    <button class="icon-btn btn-ghost" id="btn-close-settings" aria-label="Cerrar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body">
+    <p style="font-size:12.5px; color:var(--text-muted); margin:0;">Define, en páginas por semana, los límites que separan los niveles Bajo / Medio / Alto. La recomendación de capacidad mensual se recalcula proporcionalmente.</p>
+    <div class="field">
+      <label for="cfg-low">Bajo: menos de</label>
+      <input type="number" id="cfg-low" min="1" step="1">
+    </div>
+    <div class="field">
+      <label for="cfg-high">Alto: más de</label>
+      <input type="number" id="cfg-high" min="1" step="1">
+    </div>
+    <p style="font-size:11.5px; color:var(--text-faint); margin:0;">Medio queda definido automáticamente entre ambos valores.</p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn btn-outline" id="btn-reset-thresholds" style="flex:1;">Restaurar</button>
+    <button class="btn btn-primary" id="btn-save-thresholds" style="flex:1;">Aplicar</button>
+  </div>
+</div>
+
+<!-- Modal de confirmación genérico -->
+<div class="confirm-modal" id="confirm-modal">
+  <div class="confirm-box">
+    <h3 id="confirm-title">¿Confirmar acción?</h3>
+    <p id="confirm-text"></p>
+    <div class="confirm-actions">
+      <button class="btn btn-ghost" id="confirm-cancel">Cancelar</button>
+      <button class="btn btn-danger" id="confirm-ok">Sí, continuar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-wrap"></div>
+
+<script src="js/app.js" defer></script>
+</body>
+</html>
