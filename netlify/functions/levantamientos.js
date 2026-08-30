@@ -1,12 +1,16 @@
 // ================================================================
-// FUNCIÓN SERVERLESS — Levantamientos (Netlify Functions + Neon)
+// FUNCIÓN SERVERLESS — Levantamiento actual (Netlify Functions + Neon)
+//
+// Diseño de "un solo registro": esta tabla nunca acumula historial.
+// Siempre existe como máximo UNA fila (id = 'current'), que se
+// sobrescribe cada vez que el usuario guarda. Así nunca hay que
+// limpiar la base de datos a mano.
 //
 // Ruta pública: /.netlify/functions/levantamientos
 //
-//   GET    /levantamientos           -> lista resumida de todos los levantamientos
-//   GET    /levantamientos?id=XXX    -> un levantamiento completo
-//   POST   /levantamientos           -> crea o actualiza (upsert) un levantamiento
-//   DELETE /levantamientos?id=XXX    -> elimina un levantamiento
+//   GET    /levantamientos   -> el levantamiento actual (o 404 si no hay ninguno)
+//   POST   /levantamientos   -> guarda (sobrescribe) el levantamiento actual
+//   DELETE /levantamientos   -> borra el levantamiento actual
 //
 // Variable de entorno requerida: DATABASE_URL (o NETLIFY_DATABASE_URL,
 // que es el nombre que usa automáticamente la integración de Neon en
@@ -14,6 +18,8 @@
 // ================================================================
 
 const { neon } = require('@neondatabase/serverless');
+
+const CURRENT_ID = 'current';
 
 function getSql() {
   const connectionString = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
@@ -25,7 +31,6 @@ function getSql() {
 
 const jsonHeaders = {
   'Content-Type': 'application/json; charset=utf-8',
-  // Permite llamar la función desde el mismo sitio sin problemas de CORS.
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -47,40 +52,22 @@ exports.handler = async (event) => {
     return respond(500, { error: err.message });
   }
 
-  const id = event.queryStringParameters && event.queryStringParameters.id;
-
   try {
     // ---------------------------------------------------------
-    // GET — listar todos, o traer uno por id
+    // GET — traer el levantamiento actual (solo hay uno)
     // ---------------------------------------------------------
     if (event.httpMethod === 'GET') {
-      if (id) {
-        const rows = await sql`SELECT * FROM levantamientos WHERE id = ${id} LIMIT 1`;
-        if (!rows.length) return respond(404, { error: 'Levantamiento no encontrado.' });
-        return respond(200, rowToState(rows[0]));
-      }
-      const rows = await sql`
-        SELECT id, cliente, tecnico, fecha, updated_at
-        FROM levantamientos
-        ORDER BY updated_at DESC
-        LIMIT 200
-      `;
-      return respond(200, rows.map(r => ({
-        codigo: r.id,
-        cliente: r.cliente,
-        tecnico: r.tecnico,
-        fecha: r.fecha,
-        actualizado: r.updated_at,
-      })));
+      const rows = await sql`SELECT * FROM levantamientos WHERE id = ${CURRENT_ID} LIMIT 1`;
+      if (!rows.length) return respond(404, { error: 'No hay ningún levantamiento guardado en la nube todavía.' });
+      return respond(200, rowToState(rows[0]));
     }
 
     // ---------------------------------------------------------
-    // POST — crear o actualizar (upsert) un levantamiento completo
+    // POST — guardar (sobrescribir) el levantamiento actual
     // ---------------------------------------------------------
     if (event.httpMethod === 'POST') {
       const body = JSON.parse(event.body || '{}');
       const meta = body.meta || {};
-      if (!meta.codigo) return respond(400, { error: 'Falta meta.codigo (identificador del levantamiento).' });
       if (!meta.cliente || !meta.cliente.trim()) return respond(400, { error: 'Falta el nombre del cliente.' });
 
       const departamentos = JSON.stringify(body.departamentos || []);
@@ -88,12 +75,13 @@ exports.handler = async (event) => {
       const thresholds = JSON.stringify(body.thresholds || { low: 1000, high: 2000 });
 
       const rows = await sql`
-        INSERT INTO levantamientos (id, cliente, tecnico, fecha, observaciones, thresholds, departamentos, equipos, updated_at)
+        INSERT INTO levantamientos (id, codigo, cliente, tecnico, fecha, observaciones, thresholds, departamentos, equipos, updated_at)
         VALUES (
-          ${meta.codigo}, ${meta.cliente}, ${meta.tecnico || ''}, ${meta.fecha || null},
+          ${CURRENT_ID}, ${meta.codigo || ''}, ${meta.cliente}, ${meta.tecnico || ''}, ${meta.fecha || null},
           ${meta.observaciones || ''}, ${thresholds}::jsonb, ${departamentos}::jsonb, ${equipos}::jsonb, now()
         )
         ON CONFLICT (id) DO UPDATE SET
+          codigo         = EXCLUDED.codigo,
           cliente        = EXCLUDED.cliente,
           tecnico        = EXCLUDED.tecnico,
           fecha          = EXCLUDED.fecha,
@@ -108,11 +96,10 @@ exports.handler = async (event) => {
     }
 
     // ---------------------------------------------------------
-    // DELETE — eliminar un levantamiento
+    // DELETE — borrar el levantamiento actual
     // ---------------------------------------------------------
     if (event.httpMethod === 'DELETE') {
-      if (!id) return respond(400, { error: 'Falta el parámetro id.' });
-      await sql`DELETE FROM levantamientos WHERE id = ${id}`;
+      await sql`DELETE FROM levantamientos WHERE id = ${CURRENT_ID}`;
       return respond(200, { ok: true });
     }
 
@@ -123,14 +110,14 @@ exports.handler = async (event) => {
   }
 };
 
-// Convierte una fila de la tabla al mismo formato "state" que usa el frontend
+// Convierte la fila de la tabla al mismo formato "state" que usa el frontend
 function rowToState(row) {
   return {
     meta: {
       cliente: row.cliente,
       tecnico: row.tecnico,
       fecha: row.fecha,
-      codigo: row.id,
+      codigo: row.codigo || row.id,
       observaciones: row.observaciones,
     },
     thresholds: row.thresholds,
