@@ -359,8 +359,39 @@ footer.app-footer p{font-size:11.5px; color:var(--text-faint); text-align:center
   .section-head h2{font-size:17px;}
   .drawer{width:100%; max-width:100%;}
 }
+/* ============================================================
+   REPORTE DE IMPRESIÓN
+   Oculto en pantalla; solo se muestra al imprimir (Ctrl+P / botón
+   "Imprimir"). Contiene únicamente lo que se le presenta al jefe:
+   datos del cliente, volumen por departamento y recomendación.
+   ============================================================ */
+.print-only{ display:none; }
+
+#print-report .pr-header{ display:flex; align-items:center; gap:14px; border-bottom:2px solid #16212B; padding-bottom:12px; margin-bottom:16px; }
+#print-report .pr-header img{ height:46px; }
+#print-report .pr-header h1{ font-size:18px; margin:0; }
+#print-report .pr-header p{ font-size:12px; margin:2px 0 0; color:#5B6B7A; }
+
+#print-report table.pr-meta{ width:100%; border-collapse:collapse; margin-bottom:18px; font-size:12.5px; }
+#print-report table.pr-meta td{ padding:4px 0; }
+
+#print-report h2{ font-size:14px; margin:18px 0 8px; border-bottom:1px solid #ccc; padding-bottom:4px; }
+
+#print-report table.pr-table{ width:100%; border-collapse:collapse; font-size:12px; margin-bottom:6px; }
+#print-report table.pr-table th, #print-report table.pr-table td{ border:1px solid #ccc; padding:6px 8px; text-align:left; }
+#print-report table.pr-table th{ background:#EEF2F6; font-weight:700; }
+#print-report table.pr-table td.num, #print-report table.pr-table th.num{ text-align:right; font-variant-numeric:tabular-nums; }
+#print-report table.pr-table tfoot td{ font-weight:700; background:#F5F7FA; }
+
+#print-report .pr-reco{ font-size:13.5px; margin:8px 0; }
+#print-report .pr-note{ font-size:11px; color:#5B6B7A; border-left:3px solid #2970B0; padding:6px 10px; margin:8px 0 20px; }
+#print-report .pr-footer{ font-size:10.5px; color:#8B9AA8; text-align:center; margin-top:26px; }
+
 @media print{
-  .topbar, .subnav, .toolbar, .icon-btn, footer, #toast-wrap, .overlay, .drawer, .row-delete{display:none !important;}
-  body{background:#fff; color:#000;}
-  .card{box-shadow:none; border:1px solid #ccc;}
+  /* Oculta toda la app y muestra solo el reporte, sin dejar huecos en blanco */
+  body > *:not(#print-report){ visibility:hidden !important; }
+  #print-report{ display:block !important; visibility:visible !important; position:absolute; top:0; left:0; width:100%; padding:24px; }
+  #print-report *{ visibility:visible !important; }
+  body{ background:#fff; color:#000; }
 }
+
