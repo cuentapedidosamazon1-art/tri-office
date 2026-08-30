@@ -367,11 +367,84 @@
   }
 
   /* ================================================================
+     REPORTE DE IMPRESIÓN
+     Genera el contenido de #print-report: solo lo necesario para
+     presentar al jefe — datos del cliente, volumen por departamento
+     y la recomendación de equipo. Se reconstruye cada vez que cambian
+     los datos, pero solo es visible al imprimir (ver CSS @media print).
+     ================================================================ */
+  function renderPrintReport(){
+    const el = document.getElementById('print-report');
+    if (!el) return;
+    const t = totals();
+
+    const monthlyLow = thresholds.low * WEEKS_PER_MONTH;
+    const monthlyHigh = thresholds.high * WEEKS_PER_MONTH;
+    let tier = 'bajo';
+    if (t.mensual > monthlyHigh) tier = 'alto';
+    else if (t.mensual >= monthlyLow) tier = 'medio';
+    const labelMap = {
+      bajo: 'Equipo de bajo / mediano rendimiento',
+      medio: 'Equipo de rendimiento medio',
+      alto: 'Equipo de alto rendimiento'
+    };
+
+    const filas = state.departamentos.map(d=>{
+      const c = computeDept(d);
+      return `<tr>
+        <td>${escapeHtml(d.nombre || 'Sin nombre')}</td>
+        <td class="num">${fmt1.format(Number(d.resmas)||0)}</td>
+        <td class="num">${fmt.format(c.semanal)}</td>
+        <td class="num">${fmt.format(c.mensual)}</td>
+        <td class="num">${fmt.format(c.anual)}</td>
+        <td>${tierLabel(c.tier)}</td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="6">Sin departamentos registrados</td></tr>`;
+
+    el.innerHTML = `
+      <div class="pr-header">
+        <img src="assets/logo.png" alt="TRI OFFICE">
+        <div>
+          <h1>Informe de Volumen de Impresión</h1>
+          <p>Levantamiento Técnico de Equipos de Impresión</p>
+        </div>
+      </div>
+      <table class="pr-meta">
+        <tr><td style="width:50%"><strong>Cliente:</strong> ${escapeHtml(state.meta.cliente || '—')}</td><td><strong>Técnico:</strong> ${escapeHtml(state.meta.tecnico || '—')}</td></tr>
+        <tr><td><strong>Fecha:</strong> ${escapeHtml(state.meta.fecha || '—')}</td><td><strong>N.° de levantamiento:</strong> ${escapeHtml(state.meta.codigo || '—')}</td></tr>
+      </table>
+
+      <h2>Volumen de impresión por departamento</h2>
+      <table class="pr-table">
+        <thead><tr>
+          <th>Departamento</th><th class="num">Resmas/sem</th><th class="num">Páginas/sem</th>
+          <th class="num">Páginas/mes</th><th class="num">Volumen anual</th><th>Nivel</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+        <tfoot><tr>
+          <td>Total</td>
+          <td class="num">${fmt1.format(t.totalResmas)}</td>
+          <td class="num">${fmt.format(t.semanal)}</td>
+          <td class="num">${fmt.format(t.mensual)}</td>
+          <td class="num">${fmt.format(t.anual)}</td>
+          <td></td>
+        </tr></tfoot>
+      </table>
+
+      <h2>Recomendación de capacidad de impresora</h2>
+      <p class="pr-reco"><strong>Volumen detectado:</strong> ${fmt.format(t.mensual)} páginas/mes &nbsp;→&nbsp; <strong>Recomendación:</strong> ${labelMap[tier]}</p>
+      <p class="pr-note">Esta recomendación es referencial y debe validarse considerando el ciclo de trabajo, velocidad, tipo de documento, frecuencia de impresión y características del equipo.</p>
+
+      <p class="pr-footer">Generado el ${new Date().toLocaleDateString('es-DO')} · Calculadora de Volumen de Impresión — TRI OFFICE</p>
+    `;
+  }
+
+  /* ================================================================
      RENDER GENERAL
      ================================================================ */
   function renderAll(){
     // Cada sección se renderiza de forma aislada: si una falla, no arrastra a las demás.
-    [renderDepts, renderDashboard, renderAnalysis, renderReco, renderEquipos].forEach(fn=>{
+    [renderDepts, renderDashboard, renderAnalysis, renderReco, renderEquipos, renderPrintReport].forEach(fn=>{
       try{ fn(); }
       catch(err){ console.error(`Error en ${fn.name}:`, err); }
     });
@@ -398,25 +471,14 @@
     return `LEV-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${Math.floor(Math.random()*900+100)}`;
   }
 
-  function getSavedList(){
-    try{ return JSON.parse(safeStorage.get(LS_KEYS.saved) || '[]'); }
-    catch(e){ return []; }
-  }
-
-  function saveLocalList(snapshot){
-    const list = getSavedList();
-    const idx = list.findIndex(l => l.meta.codigo === snapshot.meta.codigo);
-    if (idx >= 0) list[idx] = snapshot; else list.push(snapshot);
-    return safeStorage.set(LS_KEYS.saved, JSON.stringify(list));
-  }
-
   /* ================================================================
      API — Netlify Functions + Neon (Fase 5)
-     Si la función no existe (proyecto sin desplegar en Netlify, o
-     abierto con doble clic como archivo local) o falla la conexión con
-     la base de datos, cada llamada lanza un error y quien la invoque
-     debe caer de regreso a localStorage. Así la app nunca deja de
-     funcionar, con o sin nube.
+     Diseño de "un solo registro": la nube guarda ÚNICAMENTE el
+     levantamiento en el que estás trabajando ahora mismo (se sobrescribe
+     cada vez que guardas). Así nunca hay que limpiar la base de datos
+     manualmente. Si la función no existe o falla la conexión, cada
+     llamada lanza un error y quien la invoque cae de regreso a
+     localStorage — la app nunca deja de funcionar, con o sin nube.
      ================================================================ */
   const API_URL = '/.netlify/functions/levantamientos';
 
@@ -430,15 +492,15 @@
     return res.json();
   }
 
-  async function apiList(){
+  async function apiGet(){
     const res = await fetch(API_URL);
-    if (!res.ok) throw new Error('API list falló: ' + res.status);
+    if (!res.ok) throw new Error('API get falló: ' + res.status);
     return res.json();
   }
 
-  async function apiGet(id){
-    const res = await fetch(API_URL + '?id=' + encodeURIComponent(id));
-    if (!res.ok) throw new Error('API get falló: ' + res.status);
+  async function apiDelete(){
+    const res = await fetch(API_URL, { method: 'DELETE' });
+    if (!res.ok) throw new Error('API delete falló: ' + res.status);
     return res.json();
   }
 
@@ -454,17 +516,14 @@
     snapshot.savedAt = new Date().toISOString();
 
     document.getElementById('in-codigo').value = state.meta.codigo;
-    persistDraft();
+    persistDraft(); // siempre queda al menos en este dispositivo
 
     try{
       await apiSave(snapshot);
-      saveLocalList(snapshot); // copia local como caché/respaldo
       showToast('Levantamiento guardado en la nube (Neon).');
     }catch(err){
-      console.warn('No se pudo guardar en la nube, se guarda localmente:', err);
-      const ok = saveLocalList(snapshot);
-      if (ok) showToast('Guardado localmente. No se pudo conectar con la base de datos en la nube.', true);
-      else showToast('No se pudo guardar ni en la nube ni localmente en este navegador.', true);
+      console.warn('No se pudo guardar en la nube, se queda guardado localmente:', err);
+      showToast('Guardado localmente. No se pudo conectar con la base de datos en la nube.', true);
     }
   }
 
@@ -689,64 +748,47 @@
   }
 
   async function loadLevantamiento(){
-    let fromCloud = false;
-    let opciones; // lista resumida para mostrar en el selector
-
+    let cloud;
     try{
-      opciones = await apiList(); // [{codigo, cliente, tecnico, fecha, actualizado}, ...]
-      fromCloud = true;
+      cloud = await apiGet();
     }catch(err){
-      console.warn('No se pudo listar desde la nube, se usa la lista local:', err);
-      const local = getSavedList();
-      opciones = local.map(l => ({ codigo: l.meta.codigo, cliente: l.meta.cliente }));
+      console.warn('No se pudo traer el levantamiento desde la nube:', err);
+      showToast('No hay ningún levantamiento guardado en la nube todavía (o no hay conexión). Se mantiene lo que tienes en pantalla.', true);
+      return;
     }
 
-    if (!opciones.length){ showToast('No hay levantamientos guardados todavía.', true); return; }
-
-    const texto = opciones.map((o,i)=> `${i+1}. ${o.cliente || 'Sin nombre'} (${o.codigo || 's/n'})`).join('\n');
-    const seleccion = prompt(
-      (fromCloud ? 'Levantamientos guardados en la nube:\n\n' : 'Levantamientos guardados en este dispositivo:\n\n') +
-      texto + '\n\nEscribe el número a cargar:'
-    );
-    const idx = parseInt(seleccion, 10) - 1;
-    if (isNaN(idx) || !opciones[idx]){ if (seleccion !== null) showToast('Selección no válida.', true); return; }
-    const codigo = opciones[idx].codigo;
-
-    if (fromCloud){
-      try{
-        state = await apiGet(codigo);
-      }catch(err){
-        console.warn('No se pudo traer el levantamiento de la nube, se busca localmente:', err);
-        const local = getSavedList().find(l => l.meta.codigo === codigo);
-        if (!local){ showToast('No se pudo cargar ese levantamiento.', true); return; }
-        state = local;
+    confirmAction(
+      'Cargar desde la nube',
+      `Se encontró un levantamiento guardado en la nube para "${cloud.meta.cliente || 'Sin nombre'}". ¿Reemplazar lo que tienes en pantalla con esa versión?`,
+      ()=>{
+        state = cloud;
+        if (!state.equipos) state.equipos = [];
+        // Los umbrales viajan junto al levantamiento; si no vienen, se
+        // mantienen los umbrales actuales de la app.
+        if (state.thresholds){
+          thresholds = state.thresholds;
+          safeStorage.set(LS_KEYS.thresholds, JSON.stringify(thresholds));
+        }
+        delete state.thresholds; // no forma parte de la estructura interna de "state"
+        persistDraft();
+        syncMetaInputs();
+        renderAll();
+        showToast('Levantamiento cargado desde la nube: ' + (state.meta.cliente || ''));
       }
-    } else {
-      const local = getSavedList().find(l => l.meta.codigo === codigo);
-      if (!local){ showToast('No se pudo cargar ese levantamiento.', true); return; }
-      state = local;
-    }
-
-    if (!state.equipos) state.equipos = [];
-    // Los umbrales viajan junto al levantamiento (guardados o de la nube);
-    // si no vienen, se mantienen los umbrales actuales de la app.
-    if (state.thresholds){
-      thresholds = state.thresholds;
-      safeStorage.set(LS_KEYS.thresholds, JSON.stringify(thresholds));
-    }
-    delete state.thresholds; // no forma parte de la estructura interna de "state"
-    persistDraft();
-    syncMetaInputs();
-    renderAll();
-    showToast('Levantamiento cargado: ' + (state.meta.cliente || ''));
+    );
   }
 
   function deleteAll(){
-    confirmAction('Eliminar levantamiento', 'Esto borrará todos los departamentos, equipos y datos del formulario actual. Esta acción no se puede deshacer.', ()=>{
+    confirmAction('Eliminar levantamiento', 'Esto borrará todos los departamentos, equipos y datos del formulario actual (y el registro en la nube, si existe). Esta acción no se puede deshacer.', async ()=>{
       state.departamentos = [];
       state.equipos = [];
       persistDraft();
       renderAll();
+      try{
+        await apiDelete();
+      }catch(err){
+        console.warn('No se pudo borrar el registro en la nube (puede que no existiera todavía):', err);
+      }
       showToast('Datos del levantamiento eliminados.');
     });
   }
@@ -824,7 +866,7 @@
     on('btn-save', 'click', saveLevantamiento);
     on('btn-load', 'click', loadLevantamiento);
     on('btn-delete', 'click', deleteAll);
-    on('btn-print', 'click', ()=> window.print());
+    on('btn-print', 'click', ()=>{ renderPrintReport(); window.print(); });
     on('btn-pdf', 'click', ()=> showToast('La exportación a PDF llega en la próxima fase.'));
     on('btn-xls', 'click', ()=> showToast('La exportación a Excel llega en la próxima fase.'));
 
